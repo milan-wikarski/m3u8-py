@@ -1,6 +1,6 @@
 from m3u8.parser import M3U8
 
-print(M3U8.parse_master("""
+response = M3U8.parse("""
 #EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-STREAM-INF:BANDWIDTH=360057,CODECS="avc1.66.30,mp4a.40.5",RESOLUTION=416x234
@@ -21,4 +21,6 @@ stream_Layer6.m3u8
 stream_Layer7.m3u8
 #EXT-X-STREAM-INF:BANDWIDTH=128302,CODECS="mp4a.40.2"
 stream_Layer8.m3u8
-"""))
+""", M3U8.PLAYLIST_TYPE_MASTER)
+
+print(response)
