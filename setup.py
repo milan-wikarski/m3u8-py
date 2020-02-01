@@ -1,26 +1,30 @@
 from m3u8.parser import M3U8
+from requests import request
 
-response = M3U8.parse("""
-#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=360057,CODECS="avc1.66.30,mp4a.40.5",RESOLUTION=416x234
-stream_Layer0.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=581897,CODECS="avc1.66.30,mp4a.40.5",RESOLUTION=416x234
-stream_Layer1.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=910972,CODECS="avc1.4d401f,mp4a.40.5",RESOLUTION=640x360
-stream_Layer2.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=1476627,CODECS="avc1.4d401f,mp4a.40.5",RESOLUTION=640x360
-stream_Layer3.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=2071459,CODECS="avc1.4d401f,mp4a.40.5",RESOLUTION=852x480
-stream_Layer4.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=2807968,CODECS="avc1.4d401f,mp4a.40.5",RESOLUTION=960x540
-stream_Layer5.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=3888742,CODECS="avc1.4d401f,mp4a.40.5",RESOLUTION=1280x720
-stream_Layer6.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=5499526,CODECS="avc1.4d4028,mp4a.40.5",RESOLUTION=1920x1080
-stream_Layer7.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=128302,CODECS="mp4a.40.2"
-stream_Layer8.m3u8
-""", M3U8.PLAYLIST_TYPE_MASTER)
+base_url = 'https://media.cdn.adultswim.com/streams/archive/casualFridaypt3_20200131/'
+
+master_playlist = open('examples/master.m3u8', 'r').read()
+response = M3U8.parse(master_playlist, M3U8.PLAYLIST_TYPE_MASTER)
 
 print(response)
+
+# for i, stream in enumerate(response.variant_streams):
+#   media_playlist = request('GET', base_url + stream.uri)
+  
+#   if (stream.resolution is not None):
+#     playlist_id = f'{stream.resolution[0]}x{stream.resolution[1]}'
+#   else:
+#     playlist_id = 'audio'
+  
+#   open(f'examples/media-{playlist_id}.m3u8', 'w').write(media_playlist.text)
+
+media_playlist = open('examples/media-1280x720.m3u8', 'r').read()
+response = M3U8.parse(media_playlist, M3U8.PLAYLIST_TYPE_MEDIA)
+
+# for key in response.media_segments:
+#   segment = response.media_segments[key]
+#   print(f'{key}\n{segment.__str__()}')
+
+# print(base_url + response.media_segments)
+# response = request('GET', base_url + response.media_segments[1].uri)
+# print(response.text)
