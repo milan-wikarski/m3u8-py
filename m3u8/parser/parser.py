@@ -1,6 +1,6 @@
 import re
 from requests import request
-from m3u8.util import Iterator, URIValidator
+from m3u8.util import Iterator, URLValidator
 from m3u8.parser.variant_stream import M3U8_VariantStream
 from m3u8.parser.media_segment import M3U8_MediaSegment
 from m3u8.parser.attribute_list import M3U8_AttributeListFactory
@@ -56,7 +56,7 @@ class M3U8_Parser:
 			parsed = M3U8_Playlist_Media()
 			segment = None
 
-		if (URIValidator.is_valid(src)):
+		if (URLValidator.is_valid(src)):
 			src = request('GET', src).text
 
 		first_line = True
@@ -113,8 +113,8 @@ class M3U8_Parser:
 					# EXT-X-STREAM-INF (4.3.4.2)
 					elif (key == '#EXT-X-STREAM-INF'):
 						attr_list = M3U8_AttributeListFactory.create(value)
-						uri = iterator.next()
-						variant_stream = M3U8_VariantStream(attr_list, uri)
+						url = iterator.next()
+						variant_stream = M3U8_VariantStream(attr_list, url)
 						parsed.add_stream(variant_stream)
 
 				# #
@@ -176,7 +176,7 @@ class M3U8_Parser:
 			
 			# 3: Line is a URL
 			else:
-				segment.uri = line
+				segment.url = line
 				parsed.add_segment(segment)
 				segment = None
 

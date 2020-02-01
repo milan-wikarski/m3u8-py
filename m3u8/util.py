@@ -26,7 +26,7 @@ class Iterator:
     self.cursor = -1
 
 
-class URIValidator:
+class URLValidator:
   regex = regex = re.compile(
     r'^(?:http|ftp)s?://' # http:// or https://
     r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
@@ -37,5 +37,17 @@ class URIValidator:
   )
 
   @staticmethod
-  def is_valid(uri):
-    return re.match(URIValidator.regex, uri) is not None
+  def is_valid(url):
+    return re.match(URLValidator.regex, url) is not None
+
+  @staticmethod
+  def locate_resource(base, path, resource):
+    # Full path
+    if (URLValidator.is_valid(resource)):
+      return resource
+    # Absolute path
+    elif (resource[0] == '/'):
+      return base + stream_url
+    # Relative path
+    else:
+      return base + path + resource

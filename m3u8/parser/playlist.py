@@ -16,7 +16,7 @@ class M3U8_Playlist_Master(M3U8_Playlist):
 			'VARIANT STREAMS',
 		]
 
-		res += [f'{stream.__str__()}\n' for stream in self.variant_streams]
+		res += [f'[{i}]\n{stream.__str__()}\n\n' for i, stream in enumerate(self.variant_streams)]
 
 		return '\n'.join(res)
 

@@ -2,8 +2,8 @@ from m3u8.parser.attribute_list import M3U8_AttributeListFactory
 
 
 class M3U8_VariantStream:
-  def __init__(self, attr_list, uri):
-    self.uri = uri
+  def __init__(self, attr_list, url):
+    self.url = url
     self.bandwidth = None
     self.average_bandwidth = None
     self.codecs = None
@@ -83,7 +83,7 @@ class M3U8_VariantStream:
 
   def __str__(self):
     return '\n'.join([
-      f'              URI --> {self.uri}',
+      f'              URL --> {self.url}',
       f'        bandwidth --> {self.bandwidth}',
       f'average_bandwidth --> {self.average_bandwidth}',
       f'           codecs --> {self.codecs}',
