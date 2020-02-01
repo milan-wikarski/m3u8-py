@@ -1,12 +1,28 @@
-from m3u8.parser import M3U8
+from m3u8.parser.parser import M3U8_Parser
+from m3u8.downloader import M3U8_Downloader
 from requests import request
 
-base_url = 'https://media.cdn.adultswim.com/streams/archive/casualFridaypt3_20200131/'
+base_uri = 'https://media.cdn.adultswim.com/streams/archive/casualFridaypt3_20200131/'
+master_playlist_uri = 'stream.m3u8'
 
-master_playlist = open('examples/master.m3u8', 'r').read()
-response = M3U8.parse(master_playlist, M3U8.PLAYLIST_TYPE_MASTER)
+downloader = M3U8_Downloader(base_uri, master_playlist_uri)
+downloader.init()
+downloader.run()
 
-print(response)
+# master_playlist = M3U8_Parser.parse(
+#   src=base_uri + master_playlist_uri,
+#   playlist_type=M3U8_Parser.PLAYLIST_TYPE_MASTER
+# )
+
+# for stream in master_playlist.variant_streams:
+#   media_playlist = M3U8_Parser.parse(
+#     src=base_uri + stream.uri,
+#     playlist_type=M3U8_Parser.PLAYLIST_TYPE_MEDIA
+#   )
+
+  # print(id(media_playlist))
+
+# print(response)
 
 # for i, stream in enumerate(response.variant_streams):
 #   media_playlist = request('GET', base_url + stream.uri)
@@ -18,8 +34,8 @@ print(response)
   
 #   open(f'examples/media-{playlist_id}.m3u8', 'w').write(media_playlist.text)
 
-media_playlist = open('examples/media-1280x720.m3u8', 'r').read()
-response = M3U8.parse(media_playlist, M3U8.PLAYLIST_TYPE_MEDIA)
+# media_playlist = open('examples/media-1280x720.m3u8', 'r').read()
+# response = M3U8_Parser.parse(media_playlist, M3U8_Parser.PLAYLIST_TYPE_MEDIA)
 
 # for key in response.media_segments:
 #   segment = response.media_segments[key]

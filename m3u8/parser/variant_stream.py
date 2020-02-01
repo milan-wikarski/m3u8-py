@@ -1,4 +1,4 @@
-from m3u8.attribute_list import M3U8_AttributeListFactory
+from m3u8.parser.attribute_list import M3U8_AttributeListFactory
 
 
 class M3U8_VariantStream:
