@@ -3,12 +3,18 @@ class M3U8_MediaSegment:
     self.url = None
     self.duration = None
     self.title = None
+    self.byterange = None
+    self.byterange_offset = None
+    self.discontinuity = False
+    self.program_datetime = None
 
   def __str__(self):
     return '\n'.join([
-      f'     URL --> {self.url}',
-      f'duration --> {self.duration}',
-      f'   title --> {self.title}'
+      f'             URL --> {self.url}',
+      f'        duration --> {self.duration}',
+      f'           title --> {self.title}',
+      f'       byterange --> {self.byterange}',
+      f'byterange_offset --> {self.byterange_offset}'
     ])
 
   @property

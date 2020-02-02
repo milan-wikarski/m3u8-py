@@ -1,5 +1,6 @@
 class M3U8_Playlist:
 	def __init__(self):
+		self.raw = None
 		self.ext_x_version = None
 
 

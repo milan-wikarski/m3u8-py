@@ -39,11 +39,11 @@ class M3U8_Parser:
 
 	MEDIA_SEGMENT_TAGS = {
 		'#EXTINF',                         # (4.3.2.1) ✓
-		'#EXT-X-BYTERANGE',                # (4.3.2.2)
-		'#EXT-X-DISCONTINUITY',            # (4.3.2.3)
+		'#EXT-X-BYTERANGE',                # (4.3.2.2) ✓
+		'#EXT-X-DISCONTINUITY',            # (4.3.2.3) ✓
 		'#EXT-X-KEY',                      # (4.3.2.4)
 		'#EXT-X-MAP',                      # (4.3.2.5)
-		'#EXT-X-PROGRAM-DATE-TIME',        # (4.3.2.6)
+		'#EXT-X-PROGRAM-DATE-TIME',        # (4.3.2.6) ✓
 		'#EXT-X-DATERANGE'                 # (4.3.2.7)
 	}
 
@@ -58,6 +58,8 @@ class M3U8_Parser:
 
 		if (URLValidator.is_valid(src)):
 			src = request('GET', src).text
+
+		parsed.raw = src
 
 		first_line = True
 
@@ -173,6 +175,25 @@ class M3U8_Parser:
 						duration, title = value.split(',')
 						segment.duration = float(duration)
 						segment.title = title
+
+					# EXT-X-BYTERANGE (4.3.2.2)
+					elif (key == '#EXT-X-BYTERANGE'):
+						value = value.split('@')
+						segment.byterange = int(value[0])
+						if (len(value) > 1):
+							segment.byterange_offset = int(value[1])
+						else:
+							prev_segment = parsed.media_segments[-1]
+							segment.byterange_offset = prev_segment.byterange_offset + prev_segment.byterange + 1
+
+					# EXT-X-DISCONTINUITY (4.3.2.3)
+					elif (key == '#EXT-X-DISCONTINUITY'):
+						segment.discontinuity = True
+
+					# EXT-X-PROGRAM-DATE-TIME (4.3.2.6)
+					elif (key == '#EXT-X-PROGRAM-DATE-TIME'):
+						segment.program_datetime = value
+
 			
 			# 3: Line is a URL
 			else:

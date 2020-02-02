@@ -1,10 +1,10 @@
 from m3u8.util import URLValidator, Iterator
 from m3u8.parser.parser import M3U8_Parser
-from requests import request
 from urllib.parse import urlparse
 import shutil
 import subprocess
 import re
+import requests
 
 
 class M3U8_Downloader:
@@ -64,38 +64,52 @@ class M3U8_Downloader:
 
         print(f'Downloading segment #{sequence_number}/{n_segments} from {url}')
 
-        subprocess.run([
-          'ffmpeg',
-          '-y',
-          '-loglevel', 'panic',
-          '-i', url,
-          '-c:v', 'copy',
-          '-c:a', 'copy',
-          f'temp/part-{sequence_number}.ts'
-        ])
+        headers = {}
+        if (segment.byterange is not None):
+          headers['Range'] = f'bytes={segment.byterange_offset}-{segment.byterange_offset + segment.byterange}'
 
-        parts.append(f'file \'part-{sequence_number}.ts\'')
+        response = requests.get(url, headers=headers, stream=True)
+        with open(f'temp/part-{sequence_number}.ts', 'wb') as out_file:
+          shutil.copyfileobj(response.raw, out_file)
+
+        # subprocess.run([
+        #   'ffmpeg',
+        #   '-y',
+        #   '-loglevel', 'panic',
+        #   '-i', url,
+        #   '-c:v', 'copy',
+        #   '-c:a', 'copy',
+        #   f'temp/part-{sequence_number}.ts'
+        # ])
+
+        parts.append(f'part-{sequence_number}.ts')
 
       if (media_playlist.ext_x_endlist):
         break
 
     with open('temp/parts.txt', 'w') as f:
-      f.write('\n'.join(parts))
+      f.write('\n'.join([f'file \'{part}\'' for part in parts]))
 
     print(f'All {n_segments} downloaded. Initiating the merging process...', end='\n\n')
 
     subprocess.run([
-      'ffmpeg',
-      '-y',
-      '-loglevel', 'panic',
-      '-f', 'concat',
-      '-safe', '0',
-      '-i', 'temp/parts.txt',
-      '-c', 'copy',
-      'out/merged.mp4'
+      'cat',
+      ' '.join(parts),
+      '>', 'merged.ts'
     ])
 
-    subprocess.run(['rm', '-rf', 'temp'])
-    subprocess.run(['mkdir', 'temp'])
+    # subprocess.run([
+    #   'ffmpeg',
+    #   '-y',
+    #   '-loglevel', 'panic',
+    #   '-f', 'concat',
+    #   '-safe', '0',
+    #   '-i', 'temp/parts.txt',
+    #   '-c', 'copy',
+    #   'out/merged.mp4'
+    # ])
+
+    # subprocess.run(['rm', '-rf', 'temp'])
+    # subprocess.run(['mkdir', 'temp'])
 
     print('Mergin process finished. All temp files were removed.', end='\n\n')

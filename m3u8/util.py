@@ -47,7 +47,7 @@ class URLValidator:
       return resource
     # Absolute path
     elif (resource[0] == '/'):
-      return base + stream_url
+      return base + resource
     # Relative path
     else:
       return base + path + resource
