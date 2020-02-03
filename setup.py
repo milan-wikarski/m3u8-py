@@ -8,4 +8,5 @@ url = 'https://hls.ted.com/talks/57063.m3u8'
 
 downloader = M3U8_Downloader(url)
 downloader.init()
-downloader.run(5)
+print(downloader.master_playlist.raw)
+# downloader.run(5)

@@ -2,6 +2,8 @@ class M3U8_Playlist:
 	def __init__(self):
 		self.raw = None
 		self.ext_x_version = None
+		self.ext_x_independent_segments = False
+		self.ext_x_start = None
 
 
 class M3U8_Playlist_Master(M3U8_Playlist):

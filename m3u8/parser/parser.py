@@ -5,6 +5,7 @@ from m3u8.parser.variant_stream import M3U8_VariantStream
 from m3u8.parser.media_segment import M3U8_MediaSegment
 from m3u8.parser.attribute_list import M3U8_AttributeListFactory
 from m3u8.parser.playlist import M3U8_Playlist_Master, M3U8_Playlist_Media
+from m3u8.parser.ext_x_start import M3U8_Ext_X_Start
 
 class M3U8_Parser:
 	PLAYLIST_TYPE_MASTER = 0
@@ -33,8 +34,8 @@ class M3U8_Parser:
 	}
 
 	MEDIA_OR_MASTER_PLAYLIST_TAGS = {
-		'#EXT-X-INDEPENDENT-SEGMENTS',     # (4.3.5.1)
-		'#EXT-X-START'										 # (4.3.5.1)
+		'#EXT-X-INDEPENDENT-SEGMENTS',     # (4.3.5.1) ✓
+		'#EXT-X-START'										 # (4.3.5.2) ✓
 	}
 
 	MEDIA_SEGMENT_TAGS = {
@@ -48,12 +49,15 @@ class M3U8_Parser:
 	}
 
 	@staticmethod
-	def parse(src, playlist_type):
+	def parse(src, master_playlist=None):
 		# Check playlist type
-		if (playlist_type == M3U8_Parser.PLAYLIST_TYPE_MASTER):
+		if (master_playlist is None):
+			playlist_type = M3U8_Parser.PLAYLIST_TYPE_MASTER
 			parsed = M3U8_Playlist_Master()
-		elif (playlist_type == M3U8_Parser.PLAYLIST_TYPE_MEDIA):
+		else:
+			playlist_type = M3U8_Parser.PLAYLIST_TYPE_MEDIA
 			parsed = M3U8_Playlist_Media()
+			parsed.ext_x_i_frames_only = master_playlist.ext_x_i_frames_only
 			segment = None
 
 		if (URLValidator.is_valid(src)):
@@ -113,7 +117,7 @@ class M3U8_Parser:
 							raise Exception(f'{key} not valid in media playlist')
 
 					# EXT-X-STREAM-INF (4.3.4.2)
-					elif (key == '#EXT-X-STREAM-INF'):
+					if (key == '#EXT-X-STREAM-INF'):
 						attr_list = M3U8_AttributeListFactory.create(value)
 						url = iterator.next()
 						variant_stream = M3U8_VariantStream(attr_list, url)
@@ -129,7 +133,7 @@ class M3U8_Parser:
 						raise Exception(f'{key} is not valid in master playlist')
 
 					# EXT-X-TARGETDURATION (4.3.3.1)
-					elif (key == '#EXT-X-TARGETDURATION'):
+					if (key == '#EXT-X-TARGETDURATION'):
 						parsed.ext_x_targetduration = int(value)
 
 					# EXT-X-MEDIA-SEQUENCE (4.3.3.2)
@@ -157,6 +161,21 @@ class M3U8_Parser:
 					# EXT-X-I-FRAMES-ONLY (4.3.3.6)
 					elif (key == '#EXT-X-I-FRAMES-ONLY'):
 						parsed.ext_x_i_frames_only = True
+
+				# #
+				# Media or Master Playlist tags
+				# (https://tools.ietf.org/html/rfc8216#section-4.3.5)
+				#
+				elif (key in M3U8_Parser.MEDIA_OR_MASTER_PLAYLIST_TAGS):
+					
+					# EXT-X-INDEPENDENT-SEGMENTS (4.3.5.1)
+					if (key == '#EXT-X-INDEPENDENT-SEGMENTS'):
+						parsed.ext_x_independent_segments = True
+
+					# EXT-X-START (4.3.5.2)
+					elif (key == '#EXT-X-START'):
+						attr_list = M3U8_AttributeListFactory.create(value)
+						parsed.ext_x_start = M3U8_Ext_X_Start(attr_list)
 
 				# #
 				# Media Segment tags
