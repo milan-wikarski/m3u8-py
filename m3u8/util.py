@@ -51,3 +51,22 @@ class URLValidator:
     # Relative path
     else:
       return base + path + resource
+
+def int_input(low=None, high=None):
+  """
+  Reads int form console.
+  Low and High limit can be specified.
+  Low is inclusive (>=)
+  High is exclusive (<)
+  """
+  res = None
+  while (True):
+    print(' > ', end='')
+    try:
+      res = int(input())
+      if ((low is None or res >= low) and (high is None or res < high)):
+        break
+    except:
+      pass
+  
+  return res

@@ -4,6 +4,7 @@ from m3u8.util import Iterator
 class M3U8_AttributeList:
   def __init__(self, parsed):
     self.parsed = parsed
+    self.extraction_rules = None
 
   def __str__(self):
     res = []
@@ -70,7 +71,9 @@ class M3U8_AttributeListFactory:
 
     # Parse each pair
     for pair in pairs:
-      key, value = pair.split("=")
+      i = pair.index('=')
+      key = pair[:i]
+      value = pair[(i + 1):]
 
       # Check the validity of characters
       match = re.match('[A-Z0-9\-]+', key)

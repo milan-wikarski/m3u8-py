@@ -3,10 +3,11 @@ from m3u8.parser.parser import M3U8_Parser
 from urllib.parse import urlparse
 import shutil
 import subprocess
-import re
-import requests
+import pycurl
 import os
+import requests
 from pathlib import Path
+from m3u8.util import int_input
 
 
 class M3U8_Downloader:
@@ -14,6 +15,7 @@ class M3U8_Downloader:
     if (not URLValidator.is_valid(url)):
       raise Exception(f'{url} is not a valid URL')
 
+    # Parse the URL
     url = urlparse(url)
     self.base_url = f'{url.scheme}://{url.netloc}'
     self.master_playlist_path = '/'.join(url.path.split('/')[:-1]) + '/'
@@ -27,88 +29,136 @@ class M3U8_Downloader:
       src=self.master_playlist_full_url
     )
 
-  def run(self, stream):
+  def run(self, stream=None, video=None, audio=None, subtitles=None, closed_captions=None, ignore_autoselect=False):
     if (self.master_playlist is None):
       raise Exception('Instance has not been initialized before calling run')
+
+    curl = pycurl.Curl()
     
-    # Create temp dir if not exists
-    temp_dir = Path('temp')
-    if (not (temp_dir.exists() and temp_dir.is_dir())):
-      temp_dir.mkdir()
+    # Wipe all data from temp.ts
+    temp_file_path = Path(f'temp.ts')
+    temp_file = open(temp_file_path, 'bw')
+    temp_file.close()
 
-    parts = []
-    stream = self.master_playlist.variant_streams[stream]
+    variant_streams = self.master_playlist.variant_streams
 
-    while (True):
-      url = URLValidator.locate_resource(
+    # User has to chose variant stream if it was not specified
+    if (stream is None):
+      print('Please select a variant stream to download:')
+      for i, variant_stream in enumerate(variant_streams):
+        print(f'[{i}]', end=' ')
+        print('; '.join([
+          f'Bandwidth: {variant_stream.bandwidth}',
+          f'Resolution: {variant_stream.resolution}'
+        ]))
+
+      stream = int_input(0, len(variant_streams))
+
+    stream = variant_streams[stream]
+
+    # Audio alternative rendition
+    if (audio != -1 and stream.audio is not None):
+      renditions = self.master_playlist.alternative_renditions[stream.audio]
+
+      if (audio is None):
+        for i, rendition in enumerate(renditions):
+          if (not ignore_autoselect and rendition.autoselect):
+            audio = i
+            break
+
+      audio_src = URLValidator.locate_resource(
         base=self.base_url,
         path=self.master_playlist_path,
-        resource=stream.url
+        resource=renditions[i].url
       )
 
-      media_playlist = M3U8_Parser.parse(
-        src=url,
-        master_playlist=self.master_playlist
+      audio = requests.get(audio_src).text
+    else:
+      audio = None
+
+    # Subtitles alternative rendition
+    if (subtitles != -1 and stream.subtitles is not None):
+      renditions = self.master_playlist.alternative_renditions[stream.subtitles]
+
+      if (subtitles is None):
+        for i, rendition in enumerate(renditions):
+          if (not ignore_autoselect and rendition.autoselect):
+            subtitles = i
+            break
+
+      subtitles_src = URLValidator.locate_resource(
+        base=self.base_url,
+        path=self.master_playlist_path,
+        resource=renditions[i].url
       )
 
-      n_segments = len(media_playlist.media_segments)
+      subtitles = requests.get(subtitles_src).text
+    else:
+      subtitles = None
 
-      print(f'Media playlist consists of {n_segments} segments')
-      if (media_playlist.ext_x_endlist):
-        print('Media playlist contains #EXT-X-ENDLIST tag', end='\n\n')
-      else:
-        print('Media playlist has not ended yet', end='\n\n')
-
-      for sequence_number in media_playlist.media_segments:
-        segment = media_playlist.media_segments[sequence_number]
-
+    # Open temp file and start downloading
+    with open(temp_file_path, 'ba') as temp_file:
+      curl.setopt(curl.WRITEDATA, temp_file)
+      
+      while (True):
+        # Get media playlist URL
         url = URLValidator.locate_resource(
           base=self.base_url,
           path=self.master_playlist_path,
-          resource=segment.url
+          resource=stream.url
         )
 
-        headers = {}
-        if (segment.byterange is not None):
-          headers['Range'] = f'bytes={segment.byterange_offset}-{segment.byterange_offset + segment.byterange}'
+        # Fetch and parse media playlist
+        media_playlist = M3U8_Parser.parse(
+          src=url,
+          master_playlist=self.master_playlist
+        )
 
-        print(f'Downloading segment #{sequence_number}/{n_segments} from {url} with headers {headers}', end='\n\n')
+        n_segments = len(media_playlist.media_segments)
 
-        response = requests.get(url, headers=headers, stream=True)
-        temp_current_part = Path(f'temp/part-{sequence_number}.ts')
-        with open(temp_current_part, 'wb') as out_file:
-          shutil.copyfileobj(response.raw, out_file)
+        print(f'Media playlist consists of {n_segments} segments')
+        if (media_playlist.ext_x_endlist):
+          print('Media playlist contains #EXT-X-ENDLIST tag', end='\n\n')
+        else:
+          print('Media playlist has not ended yet', end='\n\n')
 
-        subprocess.run([
-          'ffmpeg',
-          '-y',
-          '-loglevel', 'panic',
-          '-i', url,
-          '-c:v', 'copy',
-          '-c:a', 'copy',
-          f'temp/part-{sequence_number}.ts'
-        ])
+        # Download all segments in media playlist
+        for sequence_number in media_playlist.media_segments:
+          segment = media_playlist.media_segments[sequence_number]
 
-        parts.append(f'part-{sequence_number}.ts')
+          # Get segment URL
+          url = URLValidator.locate_resource(
+            base=self.base_url,
+            path=self.master_playlist_path,
+            resource=segment.url
+          )
 
-      if (media_playlist.ext_x_endlist):
-        break
+          # Generate headers
+          headers = []
+          if (segment.byterange is not None):
+            # Add Range if EXT-X-BYTERANGE is present
+            headers.append(f'Range: bytes={segment.byterange_offset}-{segment.byterange_offset + segment.byterange}')
 
-    temp_parts = Path('temp/parts.txt')
-    with temp_parts.open('w') as f:
-      f.write('\n'.join([f'file \'{part}\'' for part in parts]))
+          print(f'Downloading segment #{sequence_number}/{n_segments} from {url} with headers {headers}', end='\n\n')
 
-    print(f'All {n_segments} downloaded. Initiating the merging process...', end='\n\n')
+          # Download the .ts file and save it to temp folder
+          curl.setopt(curl.URL, url)
+          curl.setopt(curl.HTTPHEADER, headers)
+          curl.perform()
 
+        # End if EXT-X-ENDLIST was found
+        if (media_playlist.ext_x_endlist):
+          break
+
+    # Merge the segments by ffmpeg
     response = subprocess.run([
       'ffmpeg',
       '-y',
-      '-i', 'temp/merged.ts',
+      '-i', str(temp_file_path.absolute()),
       '-c', 'copy',
       'out/merged.mp4'
     ])
 
-    shutil.rmtree(temp_dir)
-    temp_dir.mkdir()
+    os.remove(temp_file_path)
 
     print('Mergin process finished. All temp files were removed.', end='\n\n')

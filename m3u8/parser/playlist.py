@@ -10,6 +10,7 @@ class M3U8_Playlist_Master(M3U8_Playlist):
 	def __init__(self):
 		super(M3U8_Playlist_Master, self).__init__()
 		self.variant_streams = []
+		self.alternative_renditions = dict()
 
 	def __str__(self):
 		res = [
@@ -21,10 +22,24 @@ class M3U8_Playlist_Master(M3U8_Playlist):
 
 		res += [f'[{i}]\n{stream.__str__()}\n\n' for i, stream in enumerate(self.variant_streams)]
 
+		res += ['', 'ALTERNATIVE RENDITIONS']
+
+		for key in self.alternative_renditions:
+			res.append(f'[{key}]')
+			for i, rendition in enumerate(self.alternative_renditions[key]):
+				res += [f'[{key}][{i}]', rendition.__str__(), '']
+			res.append('')
+
 		return '\n'.join(res)
 
 	def add_stream(self, stream):
 		self.variant_streams.append(stream)
+
+	def add_rendition(self, rendition):
+		if (not rendition.group_id in self.alternative_renditions):
+			self.alternative_renditions[rendition.group_id] = []
+
+		self.alternative_renditions[rendition.group_id].append(rendition)
 
 
 class M3U8_Playlist_Media(M3U8_Playlist):

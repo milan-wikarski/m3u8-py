@@ -2,6 +2,7 @@ import re
 from requests import request
 from m3u8.util import Iterator, URLValidator
 from m3u8.parser.variant_stream import M3U8_VariantStream
+from m3u8.parser.alternative_rendition import M3U8_AlternativeRendition
 from m3u8.parser.media_segment import M3U8_MediaSegment
 from m3u8.parser.attribute_list import M3U8_AttributeListFactory
 from m3u8.parser.playlist import M3U8_Playlist_Master, M3U8_Playlist_Media
@@ -17,7 +18,7 @@ class M3U8_Parser:
 	}
 
 	MASTER_PLAYLIST_TAGS = {
-		'#EXT-X-MEDIA',                    # (4.3.4.1)
+		'#EXT-X-MEDIA',                    # (4.3.4.1) ✓
 		'#EXT-X-STREAM-INF',               # (4.3.4.2) ✓
 		'#EXT-X-I-FRAME-STREAM-INF',       # (4.3.4.3)
 		'#EXT-X-SESSION-DATA',             # (4.3.4.4)
@@ -57,7 +58,7 @@ class M3U8_Parser:
 		else:
 			playlist_type = M3U8_Parser.PLAYLIST_TYPE_MEDIA
 			parsed = M3U8_Playlist_Media()
-			parsed.ext_x_i_frames_only = master_playlist.ext_x_i_frames_only
+			parsed.ext_x_independent_segments = master_playlist.ext_x_independent_segments
 			segment = None
 
 		if (URLValidator.is_valid(src)):
@@ -115,6 +116,12 @@ class M3U8_Parser:
 
 					if (playlist_type == M3U8_Parser.PLAYLIST_TYPE_MEDIA):
 							raise Exception(f'{key} not valid in media playlist')
+
+					# EXT-X-MEDIA (4.3.4.1)
+					if (key == '#EXT-X-MEDIA'):
+						attr_list = M3U8_AttributeListFactory.create(value)
+						alternative_rendition = M3U8_AlternativeRendition(attr_list)						
+						parsed.add_rendition(alternative_rendition)
 
 					# EXT-X-STREAM-INF (4.3.4.2)
 					if (key == '#EXT-X-STREAM-INF'):
