@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from m3u8.parser.parser import M3U8_Parser
-from m3u8.downloader import M3U8_Downloader
+from m3u8.downloader.downloader import M3U8_Downloader
 from requests import request
 
 parser = ArgumentParser(description='m3u8 Parser and downloader')
