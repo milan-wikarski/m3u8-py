@@ -29,7 +29,16 @@ class M3U8_Downloader:
       src=self.master_playlist_full_url
     )
 
-  def run(self, stream=None, video=None, audio=None, subtitles=None, closed_captions=None, ignore_autoselect=False):
+  def run(
+    self,
+    stream=None,
+    video=None,
+    audio=None,
+    subtitles=None,
+    closed_captions=None,
+    ignore_autoselect=False,
+    out_file='out/merged.mp4'
+  ):
     if (self.master_playlist is None):
       raise Exception('Instance has not been initialized before calling run')
 
@@ -156,7 +165,7 @@ class M3U8_Downloader:
       '-y',
       '-i', str(temp_file_path.absolute()),
       '-c', 'copy',
-      'out/merged.mp4'
+      out_file
     ])
 
     os.remove(temp_file_path)
