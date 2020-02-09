@@ -1,5 +1,6 @@
 from m3u8.util.url_validator import URLValidator
-from m3u8.util.iterator import Iterator
+from m3u8.util.iterator import Iterator, IteratorsDict
+from m3u8.util.path_file import PathFile
 from m3u8.parser.parser import M3U8_Parser
 from urllib.parse import urlparse
 from pathlib import Path
@@ -26,14 +27,19 @@ class M3U8_Downloader:
     if (not URLValidator.is_valid(url)):
       raise Exception(f'{url} is not a valid URL')
 
-    # Wipe all data from temp folder and initiate temp files
+    # Wipe all data from temp folder
     temp_dir = Path('temp')
     if (temp_dir.is_dir()):
       shutil.rmtree(temp_dir)
     temp_dir.mkdir()
 
-    temp_video_path = temp_dir / 'video.ts'
-    temp_video = open(temp_video_path, 'ba')
+    # Store temp file in dict where key is media type
+    # Value is PathFile
+    temp_files = {
+      'video': None,
+      'audio': None,
+      'subtitles': None
+    }
 
     # Initiate curl
     curl = pycurl.Curl()
@@ -82,6 +88,8 @@ class M3U8_Downloader:
       resource=stream.url
     )
 
+    temp_files['video'] = PathFile(temp_dir / 'video.ts', 'ba')
+
     # ANCHOR Audio alternative rendition
     if (audio != -1 and stream.audio is not None):
       renditions = master_playlist.alternative_renditions[stream.audio]
@@ -109,6 +117,8 @@ class M3U8_Downloader:
           path=master_playlist_path,
           resource=renditions[audio].url
         )
+
+        temp_files['audio'] = PathFile(temp_dir / 'audio.aac', 'ba')
 
     # ANCHOR Subtitles alternative rendition
     if (subtitles != -1 and stream.subtitles is not None):
@@ -138,40 +148,24 @@ class M3U8_Downloader:
           resource=renditions[i].url
         )
 
-    # Init Iterators
-    # Data for each media is stored in dict where key is media type
-    iterators = dict()
-    segments_count_total = dict()
-    segments_count_downloaded = dict()
+        temp_files['subtitles'] = PathFile(temp_dir / 'subtitles.srt', 'ba')
+
+    # Init Iterators for each media type
+    # Stored in dict where media type is key
+    iterators = IteratorsDict()
     for type in sources:
       if (sources[type] is not None):
-        playlist = M3U8_Parser.parse(
-          src=sources[type],
-          master_playlist=master_playlist
-        )
-
-        iterator = Iterator(list(playlist.media_segments.items()))
-
-        iterators[type] = iterator
-        segments_count_total[type] = len(iterator)
-        segments_count_downloaded[type] = 0
+        playlist = M3U8_Parser.parse(sources[type], master_playlist)
+        iterators[type] = Iterator(list(playlist.media_segments.items()))
       else:
         iterators[type] = Iterator([])
-        segments_count_total[type] = None
-        segments_count_downloaded[type] = None
 
     # Download all segments in all media playlists
-    while (
-      (not iterators['video'].done) or
-      (not iterators['audio'].done) or
-      (not iterators['subtitles'].done)
-    ):
+    while (not iterators.all_done):
       if (not iterators['video'].done):
         media = 'video'
-        temp_file = temp_video
       elif (not iterators['audio'].done):
         media = 'audio'
-        break # TODO
       else:
         media = 'subtitles'
         break # TODO
@@ -191,20 +185,16 @@ class M3U8_Downloader:
         # Add Range if EXT-X-BYTERANGE is present
         headers.append(f'Range: bytes={segment.byterange_offset}-{segment.byterange_offset + segment.byterange}')
 
-      # Download the .ts file and save it to temp folder
-      curl.setopt(curl.WRITEDATA, temp_file)
+      curl.setopt(curl.WRITEDATA, temp_files[media].file)
       curl.setopt(curl.URL, url)
       curl.setopt(curl.HTTPHEADER, headers)
       curl.perform()
 
       # Print progress
-      segments_count_downloaded[media] += 1
       to_print = []
-      for key in segments_count_total:
-        total = segments_count_total[key]
-        downloaded = segments_count_downloaded[key]
-        if (total is not None and downloaded is not None):
-          to_print.append(f'{key:>10}: {round((downloaded / total) * 100)}%')
+      for media, iterator in iterators.items():
+        if (iterator is not None):
+          to_print.append(f'{media:>9}: {round((iterator.progress) * 100)}%')
 
       print('\n'.join(to_print))
       sys.stdout.write('\033[F' * len(to_print))
@@ -212,16 +202,15 @@ class M3U8_Downloader:
     # Remove line moves from console
     print('\n' * len(to_print), end='')
 
-    # Close files and cURL
-    temp_video.close()
-    curl.close()
-
     # Merge media by ffmpeg
     command = [
       'ffmpeg',
       '-y',
-      '-i', str(temp_video_path.absolute())
+      '-i', temp_files['video'].abspath
     ]
+
+    # if (temp_files['audio'] is not None):
+    #   command += ['-i', temp_files['audio'].abspath]
 
     command += [
       '-c', 'copy',
@@ -230,5 +219,10 @@ class M3U8_Downloader:
 
     response = subprocess.run(command)
 
-    # Remove temp files
-    os.remove(temp_video_path)
+    # Close and remove files and cURL
+    for key in temp_files:
+      if (temp_files[key] is not None):
+        temp_files[key].close()
+        # temp_files[key].remove()
+
+    curl.close()
