@@ -1,5 +1,5 @@
 import re
-from m3u8.util import Iterator
+from m3u8.util.iterator import Iterator
 
 class M3U8_AttributeList:
   def __init__(self, parsed):

@@ -1,6 +1,7 @@
 import re
 from requests import request
-from m3u8.util import Iterator, URLValidator
+from m3u8.util.iterator import Iterator
+from m3u8.util.url_validator import URLValidator
 from m3u8.parser.variant_stream import M3U8_VariantStream
 from m3u8.parser.alternative_rendition import M3U8_AlternativeRendition
 from m3u8.parser.media_segment import M3U8_MediaSegment
